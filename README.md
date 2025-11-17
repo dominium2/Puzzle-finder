@@ -22,8 +22,8 @@ docker-compose up -d
 4. Access N8N at http://localhost:5678
 
 Default credentials:
-- Username: `admin`
-- Password: `admin`
+- Username: `admin@admin.be`
+- Password: `Password1`
 
 **Important:** Change these credentials in production by modifying the environment variables in `docker-compose.yml`.
 
