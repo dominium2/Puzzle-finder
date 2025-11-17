@@ -1,0 +1,5 @@
+# Ignore everything in n8n_data folder
+n8n_data/*
+
+# But don't ignore database.sqlite
+!n8n_data/database.sqlite
