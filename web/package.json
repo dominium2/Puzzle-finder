@@ -1,0 +1,17 @@
+{
+  "name": "puzzle-finder-web",
+  "version": "1.0.0",
+  "description": "Simple web interface to send links to N8N for processing",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "n8n",
+    "webhook",
+    "automation"
+  ],
+  "author": "",
+  "license": "ISC"
+}

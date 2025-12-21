@@ -1,0 +1,187 @@
+{
+  "name": "Puzzle Finder - Test Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "puzzle-finder",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8c0c4e6c-1a2f-4a3d-9b5e-7f8d9e0a1b2c",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "puzzle-finder"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.message}}",
+              "operation": "contains",
+              "value2": "http"
+            }
+          ]
+        }
+      },
+      "id": "9d1d5f7d-2b3f-5b4e-0c6f-8g9e0f1c2d3e",
+      "name": "Check if URL",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "type",
+              "value": "url"
+            },
+            {
+              "name": "url",
+              "value": "={{$json.message}}"
+            },
+            {
+              "name": "received_at",
+              "value": "={{$json.timestamp}}"
+            },
+            {
+              "name": "source",
+              "value": "={{$json.source}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0e2e6g8e-3c4g-6c5f-1d7g-9h0f1g2d3e4f",
+      "name": "Process URL",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        680,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "type",
+              "value": "message"
+            },
+            {
+              "name": "content",
+              "value": "={{$json.message}}"
+            },
+            {
+              "name": "received_at",
+              "value": "={{$json.timestamp}}"
+            },
+            {
+              "name": "source",
+              "value": "={{$json.source}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1f3f7h9f-4d5h-7d6g-2e8h-0i1g2h3e4f5g",
+      "name": "Process Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        680,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Data received and processed\", \"type\": $json.type, \"timestamp\": new Date().toISOString() } }}"
+      },
+      "id": "2g4g8i0g-5e6i-8e7h-3f9i-1j2h3i4f5g6h",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check if URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if URL": {
+      "main": [
+        [
+          {
+            "node": "Process URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process URL": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Message": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "id": "puzzle-finder-test",
+  "meta": {
+    "instanceId": "test"
+  },
+  "tags": []
+}
