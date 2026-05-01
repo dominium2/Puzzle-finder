@@ -6,7 +6,7 @@ A ChatGPT-style chat interface integrated with N8N workflow automation for proce
 
 - **Web Interface** (Port 3000) - ChatGPT-style chat UI with CORS proxy
 - **N8N** (Port 5678) - Workflow automation platform
-- **MySQL** (Port 3306) - Database for N8N
+- **MySQL** (Port 3306) - Optional database service for your workflows
 
 ## Quick Start
 
@@ -19,7 +19,7 @@ docker compose up -d
 ### 2. Access the Applications
 
 - **Chat Interface**: http://localhost:3000
-- **N8N Dashboard**: http://localhost:5678 (Login: `admin` / `admin`)
+- **N8N Dashboard**: http://localhost:5678 (Login: `admin@example.com` / `Admin@1234`)
 
 ### 3. Set Up N8N Workflow
 
@@ -91,8 +91,8 @@ Messages sent to N8N have this structure:
 ### N8N Credentials
 
 Default credentials (change in `docker-compose.yml`):
-- Username: `admin`
-- Password: `admin`
+- Username: `admin@example.com`
+- Password: `Admin@1234`
 
 ### MySQL Configuration
 

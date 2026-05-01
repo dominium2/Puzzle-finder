@@ -18,8 +18,9 @@ services:
       - "5678:5678"
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_USER=admin@local.test
       - N8N_BASIC_AUTH_PASSWORD=admin
+      - N8N_USER_MANAGEMENT_DISABLED=true
       - N8N_HOST=localhost
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
@@ -36,6 +37,7 @@ services:
     image: mysql:8.0
     container_name: mysql
     restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
     ports:
       - "3306:3306"
     environment:
@@ -48,8 +50,21 @@ services:
     networks:
       - n8n-network
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - n8n-network
+
 volumes:
   mysql_data:
+    driver: local
+  ollama_data:
     driver: local
 
 networks:
