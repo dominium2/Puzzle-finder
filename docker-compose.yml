@@ -1,12 +1,13 @@
 services:
-  web:
-    build: .
-    container_name: puzzle-finder-web
-    restart: unless-stopped
+  frontend:
+    build:
+      context: ../puzzlefinder-frontend
+      args:
+        REACT_APP_API_BASE: http://localhost:8080/webhook
     ports:
-      - "3000:3000"
+      - "8080:80"
     networks:
-      - n8n-network
+      - puzzle-net
     depends_on:
       - n8n
 
@@ -21,15 +22,18 @@ services:
       - N8N_BASIC_AUTH_USER=admin@local.test
       - N8N_BASIC_AUTH_PASSWORD=admin
       - N8N_USER_MANAGEMENT_DISABLED=true
+      - N8N_DEFAULT_BINARY_DATA_MODE=memory
       - N8N_HOST=localhost
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
+      - N8N_CORS_ALLOWED_ORIGINS=*
       - WEBHOOK_URL=http://localhost:5678/
+      - N8N_CORS_ALLOWED_ORIGINS=http://localhost:8080   
     volumes:
-      - .n8n_data:/home/node/.n8n
-      - .images:/home/node/images
+      - ./Puzzle-finder/.n8n_data:/home/node/.n8n
+      - ./Puzzle-finder/.images:/home/node/images
     networks:
-      - n8n-network
+      - puzzle-net
     depends_on:
       - mysql
 
@@ -47,9 +51,9 @@ services:
       - MYSQL_PASSWORD=n8n_password
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./db-init.sql:/docker-entrypoint-initdb.d/01-db-init.sql:ro
+      - ./Puzzle-finder/db-init.sql:/docker-entrypoint-initdb.d/01-db-init.sql:ro
     networks:
-      - n8n-network
+      - puzzle-net
 
   ollama:
     image: ollama/ollama:latest
@@ -57,17 +61,19 @@ services:
     restart: unless-stopped
     ports:
       - "11434:11434"
+    deploy:
+      resources:
+        limits:
+          memory: 6g
     volumes:
       - ollama_data:/root/.ollama
     networks:
-      - n8n-network
+      - puzzle-net
 
 volumes:
   mysql_data:
-    driver: local
   ollama_data:
-    driver: local
 
 networks:
-  n8n-network:
+  puzzle-net:
     driver: bridge
