@@ -1,0 +1,161 @@
+{
+  "name": "PuzzleFinder - Game Progress",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "game/progress",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d8a14bea-f3df-498d-95da-d735e5972fa1",
+      "name": "Webhook",
+      "webhookId": "game-progress-webhook-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst authHeader = $input.first().json.headers?.authorization || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nconst completed = body?.progress?.completed || 0;\nreturn { token, completed };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "8745e46b-d959-4fba-87b4-346d12fe3047",
+      "name": "Extract Data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.id FROM users u JOIN sessions s ON s.userId = u.id WHERE s.token = '{{ $json.token }}' LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "06fd9516-c5cf-4c78-83ad-197624e3a732",
+      "name": "Get User ID",
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO user_progress (userId, currentStep) VALUES ('{{ $json.id }}', {{ $('Extract Data').first().json.completed }}) ON DUPLICATE KEY UPDATE currentStep = {{ $('Extract Data').first().json.completed }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        672,
+        0
+      ],
+      "id": "85e652c7-e2ed-4c5c-a188-b5e649d6cb5b",
+      "name": "Upsert Progress",
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        880,
+        0
+      ],
+      "id": "bd7d1411-a5c0-400d-b04c-77518452f294",
+      "name": "Respond"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "Get User ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User ID": {
+      "main": [
+        [
+          {
+            "node": "Upsert Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Progress": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f8930580-1b3d-46be-8e69-f92d02fa23c5",
+  "meta": {
+    "instanceId": "70e6b78b0eb1cd535adc052b7af5bdf86e2205a87b88e7f85b9a836b8445b11b"
+  },
+  "id": "yBCnaUsdoLMmckMC",
+  "tags": []
+}

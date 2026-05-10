@@ -1,0 +1,332 @@
+{
+  "name": "Puzzle Finder - Test Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9784aa8b-416d-49ab-aef0-77f9fbe314b8",
+      "name": "Webhook",
+      "webhookId": "3bbe2e07-3b79-4532-982d-42cd090f5945"
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhookData = $('Webhook').first().json.body;\nconst currentStep = parseInt(webhookData.currentStep || 0);\nconst userMessage = webhookData.message || \"\";\nconst target = $input.first().json; \n\nconst prompt = `You are 'Control', a secret agent handler. The agent says: \"${userMessage}\". \nRespond in character. Give them a cryptic riddle to guide them to their target based on this intel: ${target.base_clue}. \nCRITICAL: NEVER use the exact name \"${target.name}\" in your response. Keep it short and mysterious.`;\n\nreturn { prompt: prompt, currentStep: currentStep };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        0
+      ],
+      "id": "09f63857-bb4c-41f5-93cd-4dab110212b0",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ message: $json.response, currentStep: $('Code in JavaScript').item.json.currentStep }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        864,
+        0
+      ],
+      "id": "f7be45d4-b08d-4563-b36d-13a33395c9e7",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"model\": \"llama2\", \"prompt\": $json.prompt, \"stream\": false }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        0
+      ],
+      "id": "f2424bb2-4cc8-4346-a66f-12245ae75c17",
+      "name": "HTTP Request (Ollama AI)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM missions WHERE step_number = {{ $json.body.currentStep }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        224,
+        304
+      ],
+      "id": "4ec41dc4-cf37-4a40-ba86-5e7467626301",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get Webhook Data\nconst webhookData = $('GPS Webhook').first().json.body;\nconst currentStep = parseInt(webhookData.currentStep || 0);\nconst userLat = parseFloat(webhookData.lat || 0);\nconst userLng = parseFloat(webhookData.lng || 0);\n\n// 2. Get Target Data from your specific MySQL Node\nconst target = $('Execute a SQL query1').first().json;\n\n// 3. Haversine Formula for distance\nfunction getDistance(lat1, lon1, lat2, lon2) {\n  const R = 6371e3; \n  const dLat = (lat2 - lat1) * Math.PI / 180;\n  const dLon = (lon2 - lon1) * Math.PI / 180;\n  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +\n            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *\n            Math.sin(dLon/2) * Math.sin(dLon/2);\n  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n  return R * c;\n}\n\n// 4. Game Logic\nconst distance = getDistance(target.lat, target.lng, userLat, userLng);\nconst isFound = distance < 100; // 100m success radius\n\nlet systemPrompt = \"\";\nlet nextStep = currentStep;\n\nif (isFound) {\n  nextStep += 1;\n  systemPrompt = `You are 'Control', a secret agent handler. The agent just transmitted their GPS coordinates and successfully reached the target: ${target.name}. Congratulate them. Be dramatic. Tell them we are preparing the next mission coordinates.`;\n} else {\n  systemPrompt = `You are 'Control', a secret agent handler. The agent transmitted their GPS coordinates, but they are currently ${Math.round(distance)} meters away from the target. Tell them they are in the wrong sector and encourage them to keep searching. Target intel: ${target.base_clue}. CRITICAL: Do NOT use the target's name.`;\n}\n\nreturn {\n  found: isFound,\n  newStep: nextStep,\n  systemPrompt: systemPrompt,\n  photo: $('GPS Webhook').first().binary \n    ? $('GPS Webhook').first().binary[Object.keys($('GPS Webhook').first().binary)[0]].data \n    : null\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        304
+      ],
+      "id": "0c7b2901-5a28-4239-9c21-7af8525a74ea",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0bb54550-3662-407c-9434-c5385a8a679b",
+              "leftValue": "={{ $json.found }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        640,
+        304
+      ],
+      "id": "e569b3b7-e47b-455a-9add-68e16676a95d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "game/location",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        16,
+        304
+      ],
+      "id": "10095fab-5f32-4ece-99ae-34b941a3feb6",
+      "name": "GPS Webhook",
+      "webhookId": "304a5fd2-c797-4760-a427-f8dd2c45dc65"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO user_progress (userId, currentStep) \nVALUES ('{{ $('GPS Webhook').item.json.body.userId }}', {{ $('Code in JavaScript1').item.json.newStep }})\nON DUPLICATE KEY UPDATE currentStep = {{ $('Code in JavaScript1').item.json.newStep }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        848,
+        208
+      ],
+      "id": "b1169612-15bc-462a-92ce-aaec54fcf990",
+      "name": "Execute a SQL query2",
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"model\": \"llama2\", \"prompt\": $('Code').item.json.prompt, \"stream\": false }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1088,
+        320
+      ],
+      "id": "9267dcad-3e9d-40b8-af91-6e8a008c770e",
+      "name": "HTTP Request (Ollama AI)1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM missions WHERE step_number = {{ $json.body.currentStep ?? 0 }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        208,
+        0
+      ],
+      "id": "b5b54d75-2b26-4c6f-93f4-e1ac34f2618e",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (Ollama AI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request (Ollama AI)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPS Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request (Ollama AI)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (Ollama AI)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4cfe45b1-e5bb-4ec7-a6e0-1a9a56b6737d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "70e6b78b0eb1cd535adc052b7af5bdf86e2205a87b88e7f85b9a836b8445b11b"
+  },
+  "id": "DXHY5X6WlY9x2IXy",
+  "tags": []
+}

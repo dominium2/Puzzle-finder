@@ -1,0 +1,239 @@
+{
+  "name": "PuzzleFinder - Auth Login",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "auth/login",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -656,
+        112
+      ],
+      "id": "d21b4f74-ed82-4c8a-9c0b-f31a44660c18",
+      "name": "Webhook",
+      "webhookId": "auth-login-webhook-001"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, email FROM users WHERE email='{{ $json.body.email }}' AND password=MD5('{{ $json.body.password }}') LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        -448,
+        112
+      ],
+      "id": "67a639e6-e4d8-4195-9a23-f0bcee64ae09",
+      "name": "Find User",
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cond-login-001",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -224,
+        112
+      ],
+      "id": "7b183735-00f6-4ff1-a27f-2c84094f5a3e",
+      "name": "User Found?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const user = $input.first().json;\nconst token = 'pf_' + user.id + '_' + Date.now();\nreturn { token: token, user: { id: user.id, name: user.name, email: user.email } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b3ce5fcf-5c26-4e23-985d-8fd7b594bcf2",
+      "name": "Build Token"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO sessions (token, userId, createdAt) VALUES ('{{ $json.token }}', '{{ $json.user.id }}', NOW()) ON DUPLICATE KEY UPDATE createdAt = NOW();",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "b6a1697e-a499-4f0a-97d1-3d53ad33bea5",
+      "name": "Save Session",
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ token: $('Build Token').first().json.token, user: $('Build Token').first().json.user }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "664567ad-3073-4120-9b64-584a7d56793e",
+      "name": "Respond OK"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"error\": \"Invalid email or password\" }",
+        "options": {
+          "responseCode": 401,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        208
+      ],
+      "id": "4e70df9e-cb3a-45ba-ae31-f6c408dda8fb",
+      "name": "Respond Fail"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Find User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find User": {
+      "main": [
+        [
+          {
+            "node": "User Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Found?": {
+      "main": [
+        [
+          {
+            "node": "Build Token",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Fail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Token": {
+      "main": [
+        [
+          {
+            "node": "Save Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "56f9f8a3-1f4a-4cfd-9ece-8f1deb8f70d2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "70e6b78b0eb1cd535adc052b7af5bdf86e2205a87b88e7f85b9a836b8445b11b"
+  },
+  "id": "2xYs5mVvwXZ6rA9R",
+  "tags": []
+}

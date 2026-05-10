@@ -1,0 +1,148 @@
+{
+  "name": "PuzzleFinder - Verify Photo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "verify-photo",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b7e2b823-c3c4-4f03-878e-a3ab93ba97bb",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "d387db33-74cd-40f5-9489-b1f31f3b7699"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM missions WHERE step_number = {{ $json.body.locationId || 0 }};",
+        "options": {}
+      },
+      "id": "ccb7843f-4077-4f7d-bdff-e8cb0cc90581",
+      "name": "Execute a SQL query",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.4,
+      "position": [
+        224,
+        0
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhookData = $('Webhook').first().json;\nconst target = $('Execute a SQL query').first().json;\nconst imageBase64 = webhookData.body.photo;\n\nreturn {\n  model: \"llava\",\n  stream: false,\n  messages: [{\n    role: \"user\",\n    content: `You are a location verification system. Does this image show ${target.name}? Clue: ${target.base_clue}. Answer with ONLY yes or no.`,\n    images: [imageBase64]\n  }]\n};"
+      },
+      "id": "42273642-6644-49e9-9157-5f938894185f",
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "4f0c521f-7ec8-457c-8fbf-a66524931aec",
+      "name": "HTTP Request (Ollama AI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ verified: $json.message.content.toLowerCase().includes('yes'), message: $json.message.content }) }}",
+        "options": {}
+      },
+      "id": "974f2484-47e2-487a-b93d-65cbbb236f51",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (Ollama AI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request (Ollama AI)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "c6bd6521-1c21-4b1e-80e7-c391ac5d3c5e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "70e6b78b0eb1cd535adc052b7af5bdf86e2205a87b88e7f85b9a836b8445b11b"
+  },
+  "id": "u7qJ2wudM6wqyLy0",
+  "tags": []
+}

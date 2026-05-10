@@ -1,0 +1,184 @@
+{
+  "name": "PuzzleFinder - Game State",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "game/state",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "50cabd2e-5a55-4fa2-8337-78a0b60dae6e",
+      "name": "Webhook",
+      "webhookId": "game-state-webhook-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const authHeader = $input.first().json.headers?.authorization || '';\nconst token = authHeader.replace('Bearer ', '').trim();\nif (!token) throw new Error('No token');\nreturn { token };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "0894dff5-9a7f-4220-bbd5-c288c6b0ceb8",
+      "name": "Extract Token"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.id as userId, up.currentStep FROM users u JOIN sessions s ON s.userId = u.id LEFT JOIN user_progress up ON up.userId = u.id WHERE s.token = '{{ $json.token }}' LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "1211642e-0067-4489-8787-79c0627ed165",
+      "name": "Get Progress",
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as total FROM missions;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        672,
+        0
+      ],
+      "id": "fb18f329-3a58-4db1-b424-8675f44fede1",
+      "name": "Get Total",
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const progress = $('Get Progress').first().json;\nconst total = $('Get Total').first().json.total || 3;\nconst currentStep = progress.currentStep || 0;\n\nreturn {\n  currentTargetId: String(currentStep),\n  currentMission: 'Find location ' + currentStep,\n  progress: {\n    completed: currentStep,\n    total: Number(total)\n  },\n  unlockedLocations: Array.from({ length: currentStep }, (_, i) => String(i)),\n  selectedLocationId: String(currentStep)\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "id": "11769eeb-3909-4f07-8323-fa93876390d9",
+      "name": "Build State"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1104,
+        0
+      ],
+      "id": "e2613286-ad5e-4a3c-a63b-2d063aa6a9bc",
+      "name": "Respond"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Token": {
+      "main": [
+        [
+          {
+            "node": "Get Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Progress": {
+      "main": [
+        [
+          {
+            "node": "Get Total",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Total": {
+      "main": [
+        [
+          {
+            "node": "Build State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build State": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4fc3fec5-d7d3-456b-986a-0b0139e5d361",
+  "meta": {
+    "instanceId": "70e6b78b0eb1cd535adc052b7af5bdf86e2205a87b88e7f85b9a836b8445b11b"
+  },
+  "id": "twj2UcCCdY70sln2",
+  "tags": []
+}

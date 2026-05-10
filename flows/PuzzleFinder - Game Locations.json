@@ -1,0 +1,129 @@
+{
+  "name": "PuzzleFinder - Game Locations",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "game/locations",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "dc812aa2-9874-465d-8808-12a65c1a20cb",
+      "name": "Webhook",
+      "webhookId": "game-locations-webhook-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(item => item.json);\nreturn { locations: rows };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "f37aa04e-035a-4196-954b-fd4f6f1cc679",
+      "name": "Format Locations"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        0
+      ],
+      "id": "81744c7f-2731-4b9b-aff5-56cb8be39692",
+      "name": "Respond"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT step_number as id, name, lat, lng, base_clue as clue FROM missions ORDER BY step_number;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        208,
+        0
+      ],
+      "id": "21172fe0-c7fe-4ce5-8098-1ef4b7065279",
+      "name": "get mission",
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "get mission",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Locations": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get mission": {
+      "main": [
+        [
+          {
+            "node": "Format Locations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "74764a32-cb94-48ee-abfd-2fcef56d4e1d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "70e6b78b0eb1cd535adc052b7af5bdf86e2205a87b88e7f85b9a836b8445b11b"
+  },
+  "id": "GOyoYQ7jb7EO8hhQ",
+  "tags": []
+}

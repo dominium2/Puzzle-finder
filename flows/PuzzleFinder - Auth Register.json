@@ -1,0 +1,296 @@
+{
+  "name": "PuzzleFinder - Auth Register",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "auth/register",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -736,
+        112
+      ],
+      "id": "83a7ee9f-c654-4724-8505-370c2c38f946",
+      "name": "Webhook",
+      "webhookId": "auth-register-webhook-001"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO users (name, email, password) VALUES ('{{ $('Webhook').first().json.body.name }}', '{{ $('Webhook').first().json.body.email }}', MD5('{{ $('Webhook').first().json.body.password }}')); SELECT LAST_INSERT_ID() as id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        -16,
+        192
+      ],
+      "id": "423c6d1a-7953-4559-9a8c-650688aad59f",
+      "name": "Create User",
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhookBody = $('Webhook').first().json.body;\nconst userId = $input.first().json['LAST_INSERT_ID()'] || $input.first().json.id;\nconst token = 'pf_' + userId + '_' + Date.now();\nreturn {\n  token: token,\n  user: { id: String(userId), name: webhookBody.name, email: webhookBody.email }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        192
+      ],
+      "id": "273c1de9-8849-4e61-b279-8b077b0eb268",
+      "name": "Build Token"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO sessions (token, userId, createdAt) VALUES ('{{ $json.token }}', '{{ $json.user.id }}', NOW());",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        464,
+        192
+      ],
+      "id": "f4739cfc-e4ed-4059-8c6c-69a907958801",
+      "name": "Save Session",
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ token: $('Build Token').first().json.token, user: $('Build Token').first().json.user }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        720,
+        192
+      ],
+      "id": "c3389520-9ab3-4b34-9c02-7ea2114225ab",
+      "name": "Respond OK"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"error\": \"An account with this email already exists\" }",
+        "options": {
+          "responseCode": 409,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -16,
+        16
+      ],
+      "id": "7b46ce42-c625-4b4c-8858-9a7584e08655",
+      "name": "Respond Conflict"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM users WHERE email='{{ $json.body.email }}' LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        -544,
+        112
+      ],
+      "id": "ef3131a5-2d0a-49f3-892a-604efdaa3191",
+      "name": "check  Exist",
+      "alwaysOutputData": true,
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst userExists = items.length > 0 && items[0].json.id;\n\nif (userExists) {\n  return [{ json: { exists: true } }];\n} else {\n  return [{ json: { exists: false } }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -384,
+        112
+      ],
+      "id": "c4dcdf63-ed6a-456e-a568-6f1b94151230",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "70ce31a9-ba03-4958-9474-f0d8808007a9",
+              "leftValue": "=={{ $json.exists }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -224,
+        112
+      ],
+      "id": "e07b27e1-1a18-4efe-8319-26eca5cccc49",
+      "name": "If"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "check  Exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create User": {
+      "main": [
+        [
+          {
+            "node": "Build Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Token": {
+      "main": [
+        [
+          {
+            "node": "Save Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Session": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check  Exist": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Respond Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "5a228189-35bd-4a6e-83b9-5c106d4ab5b1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "70e6b78b0eb1cd535adc052b7af5bdf86e2205a87b88e7f85b9a836b8445b11b"
+  },
+  "id": "AymtppNYpFgrOtaU",
+  "tags": []
+}
