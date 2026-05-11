@@ -21,7 +21,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT * FROM missions WHERE step_number = {{ $json.body.locationId || 0 }};",
+        "query": "SELECT locationID as id, name, latitude as lat, longitude as lng, COALESCE(hints, puzzle_text, description) as clue FROM Locations WHERE is_active = TRUE AND locationID = {{ $json.body.locationId || 1 }} LIMIT 1;",
         "options": {}
       },
       "id": "ccb7843f-4077-4f7d-bdff-e8cb0cc90581",
@@ -41,7 +41,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const webhookData = $('Webhook').first().json;\nconst target = $('Execute a SQL query').first().json;\nconst imageBase64 = webhookData.body.photo;\n\nreturn {\n  model: \"llava\",\n  stream: false,\n  messages: [{\n    role: \"user\",\n    content: `You are a location verification system. Does this image show ${target.name}? Clue: ${target.base_clue}. Answer with ONLY yes or no.`,\n    images: [imageBase64]\n  }]\n};"
+        "jsCode": "const webhookData = $('Webhook').first().json;\nconst target = $('Execute a SQL query').first().json;\nconst imageBase64 = webhookData.body.photo;\nconst clue = target.clue || target.hints || target.base_clue || target.description || '';\n\nreturn {\n  model: \"llava\",\n  stream: false,\n  messages: [{\n    role: \"user\",\n    content: `You are a location verification system. Does this image show ${target.name}? Clue: ${clue}. Answer with ONLY yes or no.`,\n    images: [imageBase64]\n  }]\n};"
       },
       "id": "42273642-6644-49e9-9157-5f938894185f",
       "name": "Code",
@@ -72,8 +72,97 @@
     },
     {
       "parameters": {
+        "jsCode": "const verified = $('HTTP Request (Ollama AI)').first().json.message.content.toLowerCase().includes('yes');\nconst currentLocation = $('Execute a SQL query').first().json;\n\nreturn {\n  verified,\n  aiMessage: $('HTTP Request (Ollama AI)').first().json.message.content,\n  currentLocationId: currentLocation.id,\n  nextLocationId: verified ? (currentLocation.id ? currentLocation.id + 1 : 2) : null\n};"
+      },
+      "id": "e1f5f2c5-7d8e-4c8b-9d9e-f2c5e1f5f2c5",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.id FROM users u JOIN sessions s ON s.userId = u.id WHERE s.token = '{{ $input.first().json.headers.authorization.replace(\"Bearer \", \"\").trim() }}' LIMIT 1;",
+        "options": {}
+      },
+      "id": "d7e8f9a0-b1c2-d3e4-f5g6-h7i8j9k0l1m2",
+      "name": "Get User ID",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        1104,
+        100
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE user_progress SET currentStep = {{ $('Build Response').first().json.nextLocationId || $('Build Response').first().json.currentLocationId }} WHERE userId = (SELECT id FROM users u JOIN sessions s ON s.userId = u.id WHERE s.token = '{{ $input.first().json.headers.authorization.replace(\"Bearer \", \"\").trim() }}' LIMIT 1);",
+        "options": {}
+      },
+      "id": "e8f9a0b1-c2d3-e4f5-g6h7-i8j9k0l1m2n3",
+      "name": "Update Progress",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        1104,
+        200
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT locationID as id, name, latitude as lat, longitude as lng, COALESCE(hints, puzzle_text, description) as clue FROM Locations WHERE is_active = TRUE AND locationID = {{ $json.nextLocationId || 999 }} LIMIT 1;",
+        "options": {}
+      },
+      "id": "f3c6g4d7-8e9f-5g0h-a1i2-b3j4c5k6l7m8",
+      "name": "Get Next Location",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        1328,
+        100
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const buildResp = $('Build Response').first().json;\nconst nextLocResult = $('Get Next Location').first();\n\n// Handle when Get Next Location returns no data\nif (!nextLocResult || !nextLocResult.json) {\n  return {\n    success: buildResp.verified,\n    verified: buildResp.verified,\n    message: buildResp.aiMessage,\n    nextTargetId: null,\n    nextMission: null\n  };\n}\n\nconst nextLocData = nextLocResult.json;\nconst nextLoc = Array.isArray(nextLocData) && nextLocData.length > 0 ? nextLocData[0] : (nextLocData && nextLocData.id ? nextLocData : null);\n\nreturn {\n  success: buildResp.verified,\n  verified: buildResp.verified,\n  message: buildResp.aiMessage,\n  nextTargetId: nextLoc && nextLoc.id ? String(nextLoc.id) : null,\n  nextMission: nextLoc && nextLoc.name ? `Head to ${nextLoc.name}. ${nextLoc.clue}` : null\n};"
+      },
+      "id": "a2b3c4d5-e6f7-8g9h-0i1j-2k3l4m5n6o7p",
+      "name": "Final Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        0
+      ]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ verified: $json.message.content.toLowerCase().includes('yes'), message: $json.message.content }) }}",
+        "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
       "id": "974f2484-47e2-487a-b93d-65cbbb236f51",
@@ -81,7 +170,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        880,
+        1552,
         0
       ]
     }
@@ -122,6 +211,61 @@
       ]
     },
     "HTTP Request (Ollama AI)": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Get User ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User ID": {
+      "main": [
+        [
+          {
+            "node": "Update Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Progress": {
+      "main": [
+        [
+          {
+            "node": "Get Next Location",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Next Location": {
+      "main": [
+        [
+          {
+            "node": "Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Response": {
       "main": [
         [
           {

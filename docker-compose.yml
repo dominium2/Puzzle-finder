@@ -55,6 +55,21 @@ services:
     networks:
       - puzzle-net
 
+  db-seed:
+    image: mysql:8.0
+    container_name: db-seed
+    depends_on:
+      - mysql
+    volumes:
+      - ./Puzzle-finder/db-init.sql:/seed/db-init.sql:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "until mysqladmin ping -h mysql -u n8n_user -pn8n_password --silent; do sleep 2; done;
+      mysql -h mysql -u n8n_user -pn8n_password n8n_db < /seed/db-init.sql"
+    networks:
+      - puzzle-net
+    restart: "no"
+
   ollama:
     image: ollama/ollama:latest
     container_name: ollama

@@ -1,62 +1,5 @@
-CREATE DATABASE IF NOT EXISTS n8n_db;
-USE n8n_db;
-
-CREATE TABLE IF NOT EXISTS missions (
-  step_number INT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  lat DECIMAL(10, 8) NOT NULL,
-  lng DECIMAL(11, 8) NOT NULL,
-  base_clue TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS user_progress (
-  userId INT PRIMARY KEY,
-  currentStep INT NOT NULL DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS users (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255) NOT NULL UNIQUE,
-  password VARCHAR(255) NOT NULL,
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS sessions (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  userId INT NOT NULL,
-  token VARCHAR(255) NOT NULL,
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS Locations (
-  locationID INT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  latitude DECIMAL(10,8),
-  longitude DECIMAL(11,8),
-  difficulty_level INT,
-  hints TEXT,
-  puzzle_text TEXT,
-  next_location_id INT,
-  is_active BOOLEAN DEFAULT TRUE,
-  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
-INSERT IGNORE INTO missions (step_number, name, lat, lng, base_clue) VALUES
-  (0, 'Grand Place', 50.8467, 4.3524, 'A central square paved with cobblestones, surrounded by gilded guildhalls and a towering city hall.'),
-  (1, 'Manneken Pis', 50.8450, 4.3500, 'A small, famous bronze fountain of a rebellious boy at a street corner.'),
-  (2, 'Atomium', 50.8949, 4.3415, 'A massive structure built for the 1958 World Expo, consisting of nine giant silver spheres connected by tubes.');
-
--- Populate Locations from places-seeder.js
-INSERT IGNORE INTO Locations (locationID, name, description, latitude, longitude, difficulty_level, hints, puzzle_text, next_location_id, is_active, createdAt, updatedAt) VALUES
-  (1, 'Grote Markt', 'Central square of Brussels, UNESCO World Heritage site', 50.8467, 4.3525, 1, 'Look for the golden statues on the buildings', NULL, NULL, TRUE, NOW(), NOW()),
-  (2, 'Galeries Royales Saint-Hubert', 'Elegant 19th-century shopping arcade', 50.8483, 4.3567, 1, 'Glass-roofed arcade near Grand Place', NULL, NULL, TRUE, NOW(), NOW()),
-  (3, 'Manneken Pis', 'Famous peeing boy statue', 50.8460, 4.3510, 1, 'Small statue on street corner', NULL, NULL, TRUE, NOW(), NOW()),
-  (4, 'Mont des Arts / Kunstberg', 'Cultural hill with city views', 50.8440, 4.3560, 2, 'Big stairs between museums', NULL, NULL, TRUE, NOW(), NOW()),
+INSERT INTO Locations (locationID, name, description, latitude, longitude, difficulty_level, hints, puzzle_text, next_location_id, is_active, createdAt, updatedAt)
+VALUES  (4, 'Mont des Arts / Kunstberg', 'Cultural hill with city views', 50.8440, 4.3560, 2, 'Big stairs between museums', NULL, NULL, TRUE, NOW(), NOW()),
   (5, 'Triomfboog van het Jubelpark', 'Triumphal arch in Cinquantenaire Park', 50.8407, 4.3900, 2, 'Archway in big park with museums', NULL, NULL, TRUE, NOW(), NOW()),
   (6, 'Parc du Cinquantenaire', 'Large park with museums and arch', 50.8390, 4.3870, 2, 'Park with aviation and auto museums', NULL, NULL, TRUE, NOW(), NOW()),
   (7, 'Koninklijke Musea voor Schone Kunsten', 'Royal Museums of Fine Arts', 50.8425, 4.3610, 2, 'Art museums near Mont des Arts', NULL, NULL, TRUE, NOW(), NOW()),
@@ -123,4 +66,15 @@ INSERT IGNORE INTO Locations (locationID, name, description, latitude, longitude
   (68, 'Église Sainte-Marie Madeleine', 'Last remaining part of medieval abbey, feels ancient.', 50.8450, 4.3400, 4, 'Rue de la Chapelle 40', NULL, NULL, TRUE, NOW(), NOW()),
   (69, 'La Maison van Dyck', '1927 eclectic house with seashell/pebble facade.', 50.8600, 4.3800, 5, 'Rue de la Luzerne 55, 1030 Schaerbeek', NULL, NULL, TRUE, NOW(), NOW()),
   (70, 'La Maison de La Bellone', '17th-century mansion with Baroque facade and arts courtyard.', 50.8530, 4.3420, 4, 'Rue de Flandre 46', NULL, NULL, TRUE, NOW(), NOW()),
-  (71, 'La Fontaine des Aveugles', 'Melancholic fountain of blind man and dog in small square.', 50.8450, 4.3500, 4, 'Place des Aveugles', NULL, NULL, TRUE, NOW(), NOW());
+  (71, 'La Fontaine des Aveugles', 'Melancholic fountain of blind man and dog in small square.', 50.8450, 4.3500, 4, 'Place des Aveugles', NULL, NULL, TRUE, NOW(), NOW())
+ON DUPLICATE KEY UPDATE
+  name=VALUES(name),
+  description=VALUES(description),
+  latitude=VALUES(latitude),
+  longitude=VALUES(longitude),
+  difficulty_level=VALUES(difficulty_level),
+  hints=VALUES(hints),
+  puzzle_text=VALUES(puzzle_text),
+  next_location_id=VALUES(next_location_id),
+  is_active=VALUES(is_active),
+  updatedAt=VALUES(updatedAt);

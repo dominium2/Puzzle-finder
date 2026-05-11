@@ -56,7 +56,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT COUNT(*) as total FROM missions;",
+        "query": "SELECT COUNT(*) as total FROM Locations WHERE is_active = TRUE;",
         "options": {}
       },
       "type": "n8n-nodes-base.mySql",
@@ -76,12 +76,33 @@
     },
     {
       "parameters": {
-        "jsCode": "const progress = $('Get Progress').first().json;\nconst total = $('Get Total').first().json.total || 3;\nconst currentStep = progress.currentStep || 0;\n\nreturn {\n  currentTargetId: String(currentStep),\n  currentMission: 'Find location ' + currentStep,\n  progress: {\n    completed: currentStep,\n    total: Number(total)\n  },\n  unlockedLocations: Array.from({ length: currentStep }, (_, i) => String(i)),\n  selectedLocationId: String(currentStep)\n};"
+        "operation": "executeQuery",
+        "query": "SELECT locationID as id, name, latitude as lat, longitude as lng, COALESCE(hints, puzzle_text, description) as clue FROM Locations WHERE is_active = TRUE AND locationID = {{ COALESCE($('Get Progress').first().json.currentStep, 0) + 1 }} LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        0
+      ],
+      "id": "4a5f8c25-0e9b-45ec-8e42-5d0e0bc4c111",
+      "name": "Get Current Location",
+      "credentials": {
+        "mySql": {
+          "id": "7etALnky7Mu5jKKW",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const progress = $('Get Progress').first().json;\nconst total = Number($('Get Total').first().json.total || 0);\nconst currentStep = Number(progress.currentStep || 0);\nconst currentLocation = $('Get Current Location').first().json || {};\nconst currentTargetId = String(currentLocation.id ?? currentStep + 1);\nconst currentMission = currentLocation.name\n  ? `Head to ${currentLocation.name}. ${currentLocation.clue || currentLocation.base_clue || currentLocation.hints || ''}`.trim()\n  : `Head to the next location.`;\n\nreturn {\n  currentTargetId,\n  currentMission,\n  progress: {\n    completed: currentStep,\n    total\n  },\n  unlockedLocations: Array.from({ length: currentStep }, (_, i) => String(i + 1)),\n  selectedLocationId: currentTargetId\n};"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
+        1104,
         0
       ],
       "id": "11769eeb-3909-4f07-8323-fa93876390d9",
@@ -148,6 +169,17 @@
       ]
     },
     "Get Total": {
+      "main": [
+        [
+          {
+            "node": "Get Current Location",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Current Location": {
       "main": [
         [
           {

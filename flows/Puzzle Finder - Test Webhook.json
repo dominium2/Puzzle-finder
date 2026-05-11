@@ -67,7 +67,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT * FROM missions WHERE step_number = {{ $json.body.currentStep }};",
+        "query": "SELECT locationID as id, name, latitude as lat, longitude as lng, COALESCE(hints, puzzle_text, description) as clue FROM Locations WHERE is_active = TRUE AND locationID = {{ $json.body.currentTargetId || 1 }} LIMIT 1;",
         "options": {}
       },
       "type": "n8n-nodes-base.mySql",
@@ -84,14 +84,14 @@
           "name": "MySQL account"
         }
       }
-    },
+            "jsCode": "const webhookData = $('Webhook').first().json.body;\nconst currentTargetId = String(webhookData.currentTargetId || 1);\nconst userMessage = webhookData.message || '';\nconst target = $input.first().json;\nconst clue = target.clue || target.hints || target.base_clue || target.description || '';\n\nconst prompt = `You are 'Control', a secret agent handler. The agent says: \"${userMessage}\". Respond in character. Give them a cryptic riddle to guide them to their target based on this intel: ${clue}. CRITICAL: NEVER use the exact name \"${target.name}\" in your response. Keep it short and mysterious.`;\n\nreturn { prompt, currentTargetId };"
     {
       "parameters": {
         "jsCode": "// 1. Get Webhook Data\nconst webhookData = $('GPS Webhook').first().json.body;\nconst currentStep = parseInt(webhookData.currentStep || 0);\nconst userLat = parseFloat(webhookData.lat || 0);\nconst userLng = parseFloat(webhookData.lng || 0);\n\n// 2. Get Target Data from your specific MySQL Node\nconst target = $('Execute a SQL query1').first().json;\n\n// 3. Haversine Formula for distance\nfunction getDistance(lat1, lon1, lat2, lon2) {\n  const R = 6371e3; \n  const dLat = (lat2 - lat1) * Math.PI / 180;\n  const dLon = (lon2 - lon1) * Math.PI / 180;\n  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +\n            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *\n            Math.sin(dLon/2) * Math.sin(dLon/2);\n  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n  return R * c;\n}\n\n// 4. Game Logic\nconst distance = getDistance(target.lat, target.lng, userLat, userLng);\nconst isFound = distance < 100; // 100m success radius\n\nlet systemPrompt = \"\";\nlet nextStep = currentStep;\n\nif (isFound) {\n  nextStep += 1;\n  systemPrompt = `You are 'Control', a secret agent handler. The agent just transmitted their GPS coordinates and successfully reached the target: ${target.name}. Congratulate them. Be dramatic. Tell them we are preparing the next mission coordinates.`;\n} else {\n  systemPrompt = `You are 'Control', a secret agent handler. The agent transmitted their GPS coordinates, but they are currently ${Math.round(distance)} meters away from the target. Tell them they are in the wrong sector and encourage them to keep searching. Target intel: ${target.base_clue}. CRITICAL: Do NOT use the target's name.`;\n}\n\nreturn {\n  found: isFound,\n  newStep: nextStep,\n  systemPrompt: systemPrompt,\n  photo: $('GPS Webhook').first().binary \n    ? $('GPS Webhook').first().binary[Object.keys($('GPS Webhook').first().binary)[0]].data \n    : null\n};"
       },
       "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify({ reply: $json.response, nextMission: $json.response, suggestedTargetId: $('Code in JavaScript').item.json.currentTargetId }) }}",
         432,
         304
       ],
@@ -132,7 +132,7 @@
       "name": "If"
     },
     {
-      "parameters": {
+            "jsonBody": "={{ JSON.stringify({ \"model\": \"llama2\", \"prompt\": $json.prompt, \"stream\": false }) }}",
         "httpMethod": "POST",
         "path": "game/location",
         "options": {}
@@ -189,7 +189,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT * FROM missions WHERE step_number = {{ $json.body.currentStep ?? 0 }};",
+        "query": "SELECT locationID as id, name, latitude as lat, longitude as lng, COALESCE(hints, puzzle_text, description) as clue FROM Locations WHERE is_active = TRUE AND locationID = {{ $json.body.currentTargetId || 1 }} LIMIT 1;",
         "options": {}
       },
       "type": "n8n-nodes-base.mySql",
