@@ -1,14 +1,57 @@
-# Puzzle-finder
+# Puzzle Finder
 
-A ChatGPT-style chat interface integrated with N8N workflow automation for processing messages and links.
+An AI-powered, real-world scavenger hunt game set in Brussels. Players receive cryptic clues from an AI handler, travel to physical locations, and verify their discoveries using GPS coordinates or photo uploads analyzed by local AI vision models.
 
-## Stack
+## Features
 
-- **Web Interface** (Port 3000) - ChatGPT-style chat UI with CORS proxy
-- **N8N** (Port 5678) - Workflow automation platform
-- **MySQL** (Port 3306) - Optional database service for your workflows
+* **AI Handler ("Control"):** Interacts with players in character, generating cryptic riddles to guide them to their next target using local LLMs (llama2), strictly avoiding the exact location name.
+* **Photo Verification:** Players can upload a photo of their location, which is analyzed by a local AI vision model (llava) to verify if it matches the target destination.
+* **GPS Verification:** Calculates the Haversine distance between the player's transmitted coordinates and the target location, granting success if within a 100-meter radius.
+* **Rich Database of Locations:** Seeded with 71 points of interest and hidden gems around Brussels (including Grand Place, Dudenpark in Forest, and secret spots like the Bois de la Cambre Secret Island).
+* **Custom Authentication System:** Fully automated user registration, login, and session management (JWT-style) handled directly through N8N workflows.
+* **Progress Tracking:** Saves game state and user progression persistently in a MySQL database.
+
+## Architecture & Stack
+
+* **Frontend (Port 3000):** A ChatGPT-style HTML/JS web interface wrapped in a Node.js server that acts as a CORS proxy for N8N webhooks.
+* **Workflow Engine (Port 5678):** **N8N** orchestrates the backend logic, API endpoints, database queries, and AI prompts.
+* **Database (Port 3306):** **MySQL 8.0** stores users, sessions, game progress, and the location database. Automatically seeded on startup.
+* **Local AI Engine (Port 11434):** **Ollama** runs local open-source models for text generation and image recognition. An automated service pulls the required models on the first run.
+* **Infrastructure:** Fully containerized using Docker and Docker Compose.
 
 ## Quick Start
+
+## Project Structure
+
+Top-level layout (both repositories should be siblings in the same parent folder):
+
+```
+Puzzle-finder/                # this repository (backend + workflows)
+  docker-compose.yml
+  Dockerfile
+  server.js
+  index.html
+  package.json
+  flows/
+  db-init.sql
+  places-seeder.js
+  README.md
+
+puzzlefinder-frontend/        # frontend repository (must be cloned as a sibling)
+  public/
+  src/
+  package.json
+  Dockerfile
+```
+
+Important: The frontend repository `puzzlefinder-frontend` must be cloned into the same parent folder as this repository so that Docker Compose can build and run both services together. Example:
+
+```bash
+# from the parent directory where you want both repos
+git clone https://github.com/JDW-ehb/puzzlefinder-frontend.git
+```
+
+You can use your fork or a local copy; ensure the folder name is `puzzlefinder-frontend`.
 
 ### 1. Start the Stack
 
@@ -16,103 +59,82 @@ A ChatGPT-style chat interface integrated with N8N workflow automation for proce
 docker compose up -d
 ```
 
+Note: On the very first run, an initialization container (`ollama-pull-models`) will automatically start downloading the required AI models (`llama2` and `llava`) in the background. This may take a few minutes depending on your internet connection. You can check the progress by running `docker logs -f ollama-pull-models`.
+
 ### 2. Access the Applications
 
-- **Chat Interface**: http://localhost:3000
-- **N8N Dashboard**: http://localhost:5678 (Login: `admin@example.com` / `Admin@1234`)
+- Chat Interface: http://localhost:3000
 
-### 3. Set Up N8N Workflow
+- N8N Dashboard: http://localhost:5678
+
+- Default Login: admin@local.test
+
+- Default Password: admin
+
+### 3. Set Up N8N Workflows
+
+The backend logic is entirely driven by N8N. You must import the workflows to make the game function:
 
 1. Open N8N at http://localhost:5678
-2. Import the test workflow: `test-workflow.json`
-   - Click "..." menu → "Import from File"
-   - Select `test-workflow.json`
-3. **Activate** the workflow (toggle switch)
-4. Click the Webhook node and copy the Production URL
 
-### 4. Configure Chat Interface
+2. Go to Credentials and set up your MySQL connection using the details from your `docker-compose.yml`:
 
-1. Open http://localhost:3000
-2. Click ⚙️ **Settings**
-3. Paste the webhook URL (e.g., `http://localhost:5678/webhook/puzzle-finder`)
-4. Click **Save**
+  - Database: n8n_db
+  - User: n8n_user
+  - Password: n8n_password
 
-### 5. Start Chatting
+3. Go to Workflows → Click "Add Workflow" → Select "Import from File" from the ... menu.
 
-Send any message or link - it will be forwarded to N8N for processing!
+4. Import all workflows located in the `flows` directory:
 
-## How It Works
+  - PuzzleFinder - Auth Register.json
+  - PuzzleFinder - Auth Login.json
+  - PuzzleFinder - Auth Me.json
+  - PuzzleFinder - Game State.json
+  - PuzzleFinder - Game Locations.json
+  - PuzzleFinder - Game Progress.json
+  - Puzzle Finder - Test Webhook.json (GPS/Text Handler)
+  - PuzzleFinder - Verify Photo.json (AI Vision Verification)
 
-1. User sends a message in the chat interface
-2. The message is proxied through the Node.js server (avoiding CORS issues)
-3. The server forwards it to the N8N webhook
-4. N8N processes the data and responds
-5. The response is displayed in the chat
+5. Activate all imported workflows using the toggle switch in the top right corner.
 
-## Stopping the Stack
+### 4. Configure the Frontend
+
+1. Open the web interface at http://localhost:3000
+
+2. Click ⚙️ Settings
+
+3. Paste your primary N8N webhook URL (e.g., http://localhost:5678/webhook/game-state-webhook-001 or your specific entry point).
+
+4. Click Save and start interacting with Control!
+
+## 🗄️ Database Structure
+
+The MySQL database is automatically initialized and seeded via `db-init.sql` and `places-seeder.js`.
+
+- `users`: Stores player accounts (name, email, hashed password).
+- `sessions`: Manages active login tokens for N8N webhook authentication.
+- `Locations`: The master list of 71 playable areas in Brussels, including coordinates, hints, and difficulty levels.
+- `user_progress`: Tracks the current location step of each user ID.
+
+## 🛑 Stopping the Stack
+
+To gracefully stop the containers:
 
 ```bash
 docker compose down
 ```
 
-To remove all data including volumes:
+To completely wipe all data (including the database, N8N configurations, and downloaded AI models), remove the volumes:
 
 ```bash
 docker compose down -v
 ```
 
-## Project Structure
+## 🐛 Troubleshooting
 
-```
-.
-├── docker-compose.yml      # Docker stack configuration
-├── Dockerfile              # Web container image
-├── server.js               # Node.js server with CORS proxy
-├── index.html              # ChatGPT-style chat interface
-├── package.json            # Node.js dependencies
-├── test-workflow.json      # Sample N8N workflow
-└── README.md              # This file
-```
+Frontend shows "Failed to fetch" or CORS errors: Ensure your N8N workflows are set to Active and the Webhook nodes have Options -> Allowed Origins set to *.
 
-## Data Payload
+AI is not responding: Ensure the models have finished downloading. You can verify this by checking `docker logs ollama-pull-models`. If you are running out of memory, check the memory limits in your `docker-compose.yml` for the Ollama container.
 
-Messages sent to N8N have this structure:
-
-```json
-{
-  "message": "User's message or link",
-  "timestamp": "2025-12-21T12:00:00.000Z",
-  "source": "puzzle-finder-chat"
-}
-```
-
-## Configuration
-
-### N8N Credentials
-
-Default credentials (change in `docker-compose.yml`):
-- Username: `admin@example.com`
-- Password: `Admin@1234`
-
-### MySQL Configuration
-
-- Database: `n8n_db`
-- User: `n8n_user`
-- Password: `n8n_password`
-- Root Password: `rootpassword`
-
-## Troubleshooting
-
-**Chat shows "Failed to fetch":**
-- Ensure the workflow is activated in N8N
-- Use the Production URL, not Test URL
-- Check that all containers are running: `docker compose ps`
-
-**N8N not accessible:**
-- Wait 10-15 seconds after starting for initialization
-- Check logs: `docker logs n8n`
-
-**Database connection issues:**
-- Restart the stack: `docker compose restart`
-
-For more configuration options, visit the [N8N documentation](https://docs.n8n.io/).
+Database missing locations: Check the logs of the db-seed container (`docker logs db-seed`). It ensures the Locations table is populated dynamically when the MySQL instance is ready.
