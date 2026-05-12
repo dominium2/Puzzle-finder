@@ -108,7 +108,7 @@ The backend logic is entirely driven by N8N. You must import the workflows to ma
 
 4. Click Save and start interacting with Control!
 
-## 🗄️ Database Structure
+## Database Structure
 
 The MySQL database is automatically initialized and seeded via `db-init.sql` and `places-seeder.js`.
 
@@ -117,7 +117,7 @@ The MySQL database is automatically initialized and seeded via `db-init.sql` and
 - `Locations`: The master list of 71 playable areas in Brussels, including coordinates, hints, and difficulty levels.
 - `user_progress`: Tracks the current location step of each user ID.
 
-## 🛑 Stopping the Stack
+## Stopping the Stack
 
 To gracefully stop the containers:
 
@@ -131,7 +131,7 @@ To completely wipe all data (including the database, N8N configurations, and dow
 docker compose down -v
 ```
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 Frontend shows "Failed to fetch" or CORS errors: Ensure your N8N workflows are set to Active and the Webhook nodes have Options -> Allowed Origins set to *.
 
