@@ -85,6 +85,26 @@ services:
     networks:
       - puzzle-net
 
+  ollama-pull-models:
+    image: ollama/ollama:latest
+    container_name: ollama-pull-models
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    networks:
+      - puzzle-net
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "echo 'Waiting for Ollama API to start...' &&
+      until ollama list > /dev/null 2>&1; do sleep 2; done &&
+      echo 'Ollama is up! Pulling llama3...' &&
+      ollama pull llama3 &&
+      echo 'Pulling llava...' &&
+      ollama pull llava &&
+      echo 'All AI models successfully pulled!'"
+    restart: "no"
+
 volumes:
   mysql_data:
   ollama_data:
